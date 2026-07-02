@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TradeLog</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0F172A; --s1:#1E293B; --s2:#263348; --s3:#2D3F55;
+  --bd:#334155; --bd2:#1E293B;
+  --t1:#F1F5F9; --t2:#94A3B8; --t3:#64748B;
+  --acc:#38BDF8; --acc2:rgba(56,189,248,.12);
+  --grn:#34D399; --grn2:rgba(52,211,153,.12);
+  --red:#F87171; --red2:rgba(248,113,113,.12);
+  --amb:#FBBF24; --amb2:rgba(251,191,36,.12);
+  --pur:#A78BFA;
+  --r:14px; --r2:10px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--bg);color:var(--t1);font-family:-apple-system,'Hiragino Sans',sans-serif;overscroll-behavior:none;}
+#app{display:flex;flex-direction:column;height:100%;max-width:430px;margin:0 auto;position:relative;}
+/* ── Header ── */
+.hdr{
+  flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px 12px;padding-top:calc(16px + env(safe-area-inset-top,0px));
+  background:var(--bg);border-bottom:1px solid var(--bd);
+}
+.hdr-logo{font-size:18px;font-weight:900;letter-spacing:-0.5px;color:var(--t1);}
+.hdr-logo span{color:var(--acc);}
+.hdr-date{font-size:12px;color:var(--t3);font-weight:500;}
+/* ── Scroll area ── */
+#scr{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+/* ── Bottom nav ── */
+.nav{
+  flex-shrink:0;display:flex;background:var(--s1);
+  border-top:1px solid var(--bd);
+  padding-bottom:calc(10px + var(--safe-b));
+}
+.nb{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:10px 4px 0;background:none;border:none;cursor:pointer;
+  color:var(--t3);font-family:inherit;
+}
+.nb.on{color:var(--acc);}
+.nb-ic{font-size:20px;line-height:1;}
+.nb-lb{font-size:10px;font-weight:600;letter-spacing:.3px;}
+/* ── Section header ── */
+.sh{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px;}
+.sh-t{font-size:13px;font-weight:700;color:var(--t3);letter-spacing:.5px;text-transform:uppercase;}
+/* ── Cards ── */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);margin:0 14px 10px;padding:16px;}
+.card:active{opacity:.8;}
+/* ── KPI strip ── */
+.kpi-strip{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 14px 10px;}
+.kpi-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;}
+.kpi-lbl{font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.4px;margin-bottom:6px;}
+.kpi-val{font-size:22px;font-weight:900;letter-spacing:-1px;font-variant-numeric:tabular-nums;}
+.kpi-sub{font-size:11px;color:var(--t3);margin-top:3px;}
+/* ── Color utils ── */
+.up{color:var(--grn);} .dn{color:var(--red);} .neu{color:var(--t2);}
+.chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;}
+.chip-up{background:var(--grn2);color:var(--grn);}
+.chip-dn{background:var(--red2);color:var(--red);}
+.chip-neu{background:var(--s2);color:var(--t2);}
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+.btn:active{opacity:.75;}
+.btn-acc{background:var(--acc);color:#0F172A;}
+.btn-dark{background:var(--s2);color:var(--t1);border:1px solid var(--bd);}
+.btn-sm{padding:6px 14px;font-size:12px;}
+.btn-ghost{background:none;color:var(--acc);border:1px solid var(--acc);padding:7px 16px;font-size:12px;font-weight:700;border-radius:20px;cursor:pointer;font-family:inherit;}
+/* ── Filter chips ── */
+.fchips{display:flex;gap:6px;padding:4px 14px 12px;overflow-x:auto;scrollbar-width:none;}
+.fchips::-webkit-scrollbar{display:none;}
+.fchip{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--bd);background:var(--s1);color:var(--t2);cursor:pointer;font-family:inherit;}
+.fchip.on{background:var(--acc2);border-color:var(--acc);color:var(--acc);}
+/* ── Watch rows ── */
+.wr{
+  background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);
+  margin:0 14px 8px;padding:14px 16px;cursor:pointer;
+  display:flex;align-items:flex-start;gap:12px;
+}
+.wr:active{opacity:.75;}
+.wr-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.wr-body{flex:1;min-width:0;}
+.wr-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.wr-code{font-size:15px;font-weight:900;color:var(--t1);letter-spacing:-.3px;}
+.wr-name{font-size:12px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wr-cat{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--s2);color:var(--t3);}
+.wr-memo{font-size:12px;color:var(--t3);line-height:1.5;}
+/* ── Trade rows ── */
+.tr-group{margin:0 14px 14px;}
+.tr-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.tr-code{font-size:15px;font-weight:900;color:var(--t1);}
+.tr-name{font-size:12px;color:var(--t2);}
+.tr-pnl{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;}
+.tr-row{
+  background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);
+  padding:11px 14px;margin-bottom:6px;
+  display:flex;align-items:center;gap:10px;
+}
+.tr-type{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+.tr-type.buy{background:var(--grn2);color:var(--grn);}
+.tr-type.sell{background:var(--red2);color:var(--red);}
+.tr-info{flex:1;}
+.tr-date{font-size:11px;color:var(--t3);}
+.tr-detail{font-size:13px;font-weight:600;color:var(--t1);font-variant-numeric:tabular-nums;}
+.tr-memo{font-size:11px;color:var(--t3);margin-top:2px;}
+/* ── Briefing list ── */
+.bl-row{
+  background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);
+  margin:0 14px 8px;padding:14px 16px;cursor:pointer;
+  display:flex;align-items:center;gap:12px;
+}
+.bl-row:active{opacity:.75;}
+.bl-dot{width:8px;height:8px;border-radius:50%;background:var(--acc);flex-shrink:0;}
+.bl-date{font-size:12px;font-weight:700;color:var(--acc);min-width:80px;}
+.bl-title{font-size:13px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bl-arr{color:var(--t3);font-size:16px;}
+/* ── Markdown render ── */
+.md-body{padding:16px;color:var(--t1);line-height:1.7;font-size:14px;}
+.md-body h1{font-size:20px;font-weight:900;margin-bottom:12px;color:var(--t1);}
+.md-body h2{font-size:15px;font-weight:800;margin:20px 0 8px;color:var(--acc);border-bottom:1px solid var(--bd);padding-bottom:6px;}
+.md-body h3{font-size:14px;font-weight:700;margin:14px 0 6px;color:var(--t1);}
+.md-body p{margin-bottom:10px;color:var(--t2);}
+.md-body table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px;}
+.md-body th{background:var(--s2);color:var(--t2);padding:8px 10px;text-align:left;font-weight:700;}
+.md-body td{padding:7px 10px;border-bottom:1px solid var(--bd);color:var(--t1);}
+.md-body strong{color:var(--t1);font-weight:700;}
+.md-body em{color:var(--amb);}
+.md-body li{margin:4px 0 4px 18px;color:var(--t2);}
+.md-body blockquote{border-left:3px solid var(--acc);padding-left:12px;color:var(--t2);margin:8px 0;}
+.md-body a{color:var(--acc);text-decoration:none;}
+.md-body code{background:var(--s2);padding:2px 5px;border-radius:4px;font-size:12px;}
+.md-body hr{border:none;border-top:1px solid var(--bd);margin:16px 0;}
+/* ── Empty state ── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;}
+.empty-icon{font-size:40px;margin-bottom:14px;opacity:.4;}
+.empty-t{font-size:15px;font-weight:700;color:var(--t2);margin-bottom:6px;}
+.empty-s{font-size:13px;color:var(--t3);}
+/* ── Modal ── */
+.mb{
+  position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;
+  display:none;align-items:flex-end;
+}
+.mb.on{display:flex;}
+.modal{
+  background:var(--s1);border-radius:22px 22px 0 0;width:100%;
+  max-height:90vh;overflow-y:auto;padding:0 0 calc(20px + var(--safe-b));
+}
+.modal-full{
+  position:fixed;inset:0;background:var(--bg);z-index:300;
+  display:none;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);
+}
+.modal-full.on{display:flex;}
+.mf-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--bd);}
+.mf-back{background:none;border:none;color:var(--acc);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;padding:4px 8px;}
+.mf-title{font-size:15px;font-weight:800;color:var(--t1);flex:1;}
+.mf-body{flex:1;overflow-y:auto;}
+.m-grip{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:12px auto 0;}
+.m-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;}
+.m-title{font-size:17px;font-weight:800;color:var(--t1);}
+.m-x{background:none;border:none;font-size:22px;color:var(--t3);cursor:pointer;line-height:1;padding:0 2px;}
+.m-body{padding:0 18px 12px;}
+.m-foot{padding:12px 18px 0;display:flex;gap:10px;flex-wrap:wrap;}
+/* ── Form ── */
+.fg{margin-bottom:14px;}
+.fl{display:block;font-size:12px;font-weight:700;color:var(--t3);margin-bottom:6px;letter-spacing:.3px;}
+.fc{
+  width:100%;padding:12px 14px;border-radius:10px;
+  background:var(--s2);border:1px solid var(--bd);
+  color:var(--t1);font-size:15px;font-family:inherit;
+  outline:none;
+}
+.fc:focus{border-color:var(--acc);}
+.fc::placeholder{color:var(--t3);}
+textarea.fc{min-height:80px;resize:vertical;line-height:1.5;}
+select.fc{appearance:none;}
+/* ── Banner ── */
+.banner{
+  margin:0 14px 10px;padding:14px;border-radius:var(--r);
+  display:flex;align-items:flex-start;gap:10px;
+  border:1px solid var(--bd);
+}
+.banner.info{background:var(--acc2);border-color:var(--acc);}
+.banner.warn{background:var(--amb2);border-color:var(--amb);}
+.banner-body{flex:1;}
+.banner-t{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px;}
+.banner-s{font-size:12px;color:var(--t2);}
+/* ── Gen button ── */
+.gen-bar{padding:14px;display:flex;gap:10px;align-items:center;}
+/* ── Divider ── */
+.div{height:1px;background:var(--bd);margin:4px 14px 14px;}
+/* ── Dash latest briefing ── */
+.latest-card{
+  background:linear-gradient(135deg,var(--s1) 0%,var(--s2) 100%);
+  border:1px solid var(--bd);border-radius:var(--r);
+  margin:0 14px 10px;padding:16px;cursor:pointer;
+  position:relative;overflow:hidden;
+}
+.latest-card:active{opacity:.8;}
+.latest-card::before{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:80px;height:80px;border-radius:50%;
+  background:rgba(56,189,248,.06);
+}
+.lc-label{font-size:10px;font-weight:800;color:var(--acc);letter-spacing:.8px;margin-bottom:6px;}
+.lc-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px;line-height:1.3;}
+.lc-date{font-size:11px;color:var(--t3);}
+.lc-arr{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;color:var(--t3);}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-logo">Trade<span>Log</span></div>
+    <div class="hdr-date" id="hdrDate"></div>
+  </div>
+
+  <!-- Scroll area -->
+  <div id="scr"></div>
+
+  <!-- Bottom nav -->
+  <nav class="nav">
+    <button class="nb on" id="nb-home" onclick="go('home',this)">
+      <span class="nb-ic">📊</span><span class="nb-lb">ホーム</span>
+    </button>
+    <button class="nb" id="nb-briefing" onclick="go('briefing',this)">
+      <span class="nb-ic">📰</span><span class="nb-lb">ブリーフィング</span>
+    </button>
+    <button class="nb" id="nb-watch" onclick="go('watch',this)">
+      <span class="nb-ic">⭐</span><span class="nb-lb">銘柄</span>
+    </button>
+    <button class="nb" id="nb-trade" onclick="go('trade',this)">
+      <span class="nb-ic">📋</span><span class="nb-lb">記録</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Watch Modal -->
+<div id="watchMB" class="mb">
+  <div class="modal">
+    <div class="m-grip"></div>
+    <div class="m-head">
+      <span class="m-title" id="watchMT">銘柄追加</span>
+      <button class="m-x" onclick="closeMB('watchMB')">×</button>
+    </div>
+    <div class="m-body" id="watchMBody"></div>
+    <div class="m-foot" id="watchMFoot"></div>
+  </div>
+</div>
+
+<!-- Trade Modal -->
+<div id="tradeMB" class="mb">
+  <div class="modal">
+    <div class="m-grip"></div>
+    <div class="m-head">
+      <span class="m-title" id="tradeMT">取引追加</span>
+      <button class="m-x" onclick="closeMB('tradeMB')">×</button>
+    </div>
+    <div class="m-body" id="tradeMBody"></div>
+    <div class="m-foot" id="tradeMFoot"></div>
+  </div>
+</div>
+
+<!-- Briefing full-screen reader -->
+<div id="bfFull" class="modal-full">
+  <div class="mf-head">
+    <button class="mf-back" onclick="closeBriefingFull()">‹ 戻る</button>
+    <span class="mf-title" id="bfFullTitle"></span>
+  </div>
+  <div class="mf-body" id="bfFullBody"></div>
+</div>
+
+<script>
+// ── Storage ─────────────────────────────────────────────────────
+const SK = 'tradeLog_v1';
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const API = 'http://localhost:7879';
+
+// Briefing data cache (deployed mode reads briefings.json once)
+let _briefingsCache = null;
+async function _getBriefingsJson() {
+  if (_briefingsCache) return _briefingsCache;
+  const r = await fetch('/briefings.json');
+  _briefingsCache = await r.json();
+  return _briefingsCache;
+}
+
+async function apiBriefings() {
+  if (IS_LOCAL) {
+    return fetch(`${API}/api/briefings`).then(r => r.json());
+  }
+  const list = await _getBriefingsJson();
+  return list.map(b => ({ file: b.file, title: b.title, mtime: b.mtime }));
+}
+
+async function apiBriefingContent(file) {
+  if (IS_LOCAL) {
+    return fetch(`${API}/api/briefing?file=${encodeURIComponent(file)}`)
+      .then(r => r.json()).then(d => d.content);
+  }
+  const list = await _getBriefingsJson();
+  const b = list.find(x => x.file === file);
+  return b ? b.content : '見つかりません';
+}
+let db = { watchlist: [], trades: [] };
+
+function loadDB() {
+  try {
+    const r = localStorage.getItem(SK);
+    if (r) db = JSON.parse(r);
+  } catch(e) {}
+  if (!db.watchlist) db.watchlist = [];
+  if (!db.trades) db.trades = [];
+}
+function saveDB() { localStorage.setItem(SK, JSON.stringify(db)); }
+
+// ── Utils ────────────────────────────────────────────────────────
+function nid(p) {
+  const ids = (p==='w'?db.watchlist:db.trades).map(x=>x.id).filter(x=>x);
+  return ids.length ? Math.max(...ids)+1 : 1;
+}
+function he(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function yen(n) {
+  const a = Math.abs(n);
+  const s = a >= 10000 ? (a/10000).toFixed(1).replace(/\.0$/,'')+'万' : Math.round(a).toLocaleString();
+  return (n < 0 ? '−¥' : '¥') + s;
+}
+function pct(n) { return (n>=0?'+':'')+n.toFixed(1)+'%'; }
+
+// ── Category colors ──────────────────────────────────────────────
+const CAT_COLS = {
+  '半導体':'#38BDF8','AI・テック':'#A78BFA','自動車・製造':'#FBBF24',
+  '金融':'#34D399','ディフェンシブ':'#94A3B8','米国株':'#F87171',
+  'ETF':'#FB923C','その他':'#64748B'
+};
+const CATS = Object.keys(CAT_COLS);
+
+// ── P&L calculation ──────────────────────────────────────────────
+function calcPnL(code) {
+  const ts = db.trades.filter(t=>t.code===code).sort((a,b)=>a.date.localeCompare(b.date));
+  let avgCost=0, qty=0, realized=0;
+  for (const t of ts) {
+    if (t.type==='buy') {
+      const total = avgCost*qty + t.price*t.qty;
+      qty += t.qty;
+      avgCost = qty>0 ? total/qty : 0;
+    } else {
+      realized += (t.price - avgCost)*t.qty;
+      qty -= t.qty;
+      if (qty<=0) { qty=0; avgCost=0; }
+    }
+  }
+  return { avgCost, qty, realized };
+}
+
+function totalPnL() {
+  const codes = [...new Set(db.trades.map(t=>t.code))];
+  return codes.reduce((s,c)=>s+calcPnL(c).realized, 0);
+}
+
+// ── Navigation ───────────────────────────────────────────────────
+let _curTab = 'home';
+function go(tab, btn) {
+  _curTab = tab;
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  (btn || document.getElementById('nb-'+tab))?.classList.add('on');
+  render();
+}
+
+function render() {
+  document.getElementById('scr').scrollTop = 0;
+  if (_curTab==='home') rHome();
+  else if (_curTab==='briefing') rBriefing();
+  else if (_curTab==='watch') rWatch();
+  else if (_curTab==='trade') rTrade();
+}
+
+// ── HOME ─────────────────────────────────────────────────────────
+function rHome() {
+  const pnl = totalPnL();
+  const tradeCount = db.trades.length;
+  const watchCount = db.watchlist.length;
+
+  // Latest briefing (async)
+  let latestCard = `<div class="latest-card" id="latestBrief">
+    <div class="lc-label">LATEST BRIEFING</div>
+    <div class="lc-title" style="color:var(--t3)">読み込み中...</div>
+  </div>`;
+
+  const top3w = db.watchlist.slice(0,3);
+
+  let watchPreview = '';
+  if (top3w.length) {
+    watchPreview = top3w.map(w=>{
+      const col = CAT_COLS[w.cat||'その他']||'#64748B';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd2)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></div>
+        <span style="font-size:14px;font-weight:800;color:var(--t1)">${he(w.code)}</span>
+        <span style="font-size:12px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${he(w.name)}</span>
+        <span style="font-size:11px;color:var(--t3)">${he(w.cat||'')}</span>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('scr').innerHTML = `
+    <div class="sh"><span class="sh-t">Overview</span></div>
+    ${latestCard}
+    <div class="kpi-strip">
+      <div class="kpi-card">
+        <div class="kpi-lbl">実現損益</div>
+        <div class="kpi-val ${pnl>=0?'up':'dn'}">${yen(pnl)}</div>
+        <div class="kpi-sub">${tradeCount}件の取引</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-lbl">ウォッチ銘柄</div>
+        <div class="kpi-val" style="color:var(--acc)">${watchCount}</div>
+        <div class="kpi-sub">銘柄登録済み</div>
+      </div>
+    </div>
+    ${watchCount > 0 ? `
+    <div class="sh"><span class="sh-t">ウォッチリスト</span><button class="btn-ghost btn-sm" onclick="go('watch',document.getElementById('nb-watch'))">すべて見る</button></div>
+    <div class="card" style="padding:8px 14px">
+      ${watchPreview || '<div style="color:var(--t3);font-size:13px;padding:8px 0">銘柄を追加してください</div>'}
+    </div>` : `
+    <div class="empty">
+      <div class="empty-icon">📈</div>
+      <div class="empty-t">TradeLog へようこそ</div>
+      <div class="empty-s">銘柄を登録して投資記録を始めましょう</div>
+    </div>`}
+    <div style="height:20px"></div>
+  `;
+
+  // Async load latest briefing
+  apiBriefings()
+    .then(list=>{
+      if (list && list.length) {
+        const b = list[0];
+        const dateStr = b.file.slice(0,10);
+        document.getElementById('latestBrief').innerHTML = `
+          <div class="lc-label">LATEST BRIEFING</div>
+          <div class="lc-title">${he(b.title||b.file)}</div>
+          <div class="lc-date">${dateStr}</div>
+          <span class="lc-arr">›</span>
+        `;
+        document.getElementById('latestBrief').onclick = ()=>openBriefingFull(b.file, b.title||b.file);
+      } else {
+        document.getElementById('latestBrief').innerHTML = `
+          <div class="lc-label">LATEST BRIEFING</div>
+          <div class="lc-title" style="color:var(--t3)">ブリーフィングがありません</div>
+        `;
+      }
+    })
+    .catch(()=>{
+      const el = document.getElementById('latestBrief');
+      if (el) el.innerHTML = `<div class="lc-label">LATEST BRIEFING</div><div class="lc-title" style="color:var(--t3)">データ未生成</div>`;
+    });
+}
+
+// ── BRIEFING ─────────────────────────────────────────────────────
+function rBriefing() {
+  document.getElementById('scr').innerHTML = `
+    <div class="gen-bar">
+      <button class="btn btn-acc" onclick="genBriefing()">✦ 今日のブリーフィング生成</button>
+    </div>
+    <div class="div"></div>
+    <div id="bfList"><div class="empty"><div class="empty-icon">📰</div><div class="empty-t">読み込み中...</div></div></div>
+  `;
+  apiBriefings()
+    .then(list=>{
+      if (!list || !list.length) {
+        document.getElementById('bfList').innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-t">ブリーフィングがありません</div><div class="empty-s">${IS_LOCAL ? 'python3 server.py を起動してください' : 'build.py を実行してください'}</div></div>`;
+        return;
+      }
+      document.getElementById('bfList').innerHTML = list.map(b=>{
+        const date = b.file.slice(0,10);
+        return `<div class="bl-row" onclick="openBriefingFull('${he(b.file)}','${he(b.title||date)}')">
+          <div class="bl-dot"></div>
+          <div class="bl-date">${date}</div>
+          <div class="bl-title">${he(b.title||b.file)}</div>
+          <div class="bl-arr">›</div>
+        </div>`;
+      }).join('') + '<div style="height:20px"></div>';
+    })
+    .catch(()=>{
+      document.getElementById('bfList').innerHTML = `<div class="empty"><div class="empty-icon">⚡</div><div class="empty-t">データを読み込めません</div><div class="empty-s">${IS_LOCAL ? 'python3 server.py を実行してください' : 'build.py を実行してください'}</div></div>`;
+    });
+}
+
+function genBriefing() {
+  const btn = document.querySelector('.gen-bar button');
+  if (btn) { btn.textContent = '⏳ 取得中...'; btn.disabled = true; }
+
+  fetch(`${API}/api/generate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'ok') {
+        if (btn) { btn.textContent = '✦ 今日のブリーフィング生成'; btn.disabled = false; }
+        // Reload briefing list
+        rBriefing();
+      } else {
+        alert('生成エラー: ' + (d.msg || JSON.stringify(d)));
+        if (btn) { btn.textContent = '✦ 今日のブリーフィング生成'; btn.disabled = false; }
+      }
+    })
+    .catch(e => {
+      alert('サーバーに接続できません。\npython3 server.py を起動してください。');
+      if (btn) { btn.textContent = '✦ 今日のブリーフィング生成'; btn.disabled = false; }
+    });
+}
+
+function openBriefingFull(file, title) {
+  document.getElementById('bfFullTitle').textContent = title;
+  document.getElementById('bfFullBody').innerHTML = `<div class="empty"><div class="empty-t">読み込み中...</div></div>`;
+  document.getElementById('bfFull').classList.add('on');
+  apiBriefingContent(file)
+    .then(content=>{
+      document.getElementById('bfFullBody').innerHTML = `<div class="md-body">${marked.parse(content||'')}</div>`;
+    })
+    .catch(()=>{
+      document.getElementById('bfFullBody').innerHTML = `<div class="empty"><div class="empty-t">読み込みエラー</div></div>`;
+    });
+}
+
+function closeBriefingFull() {
+  document.getElementById('bfFull').classList.remove('on');
+}
+
+// ── WATCH ────────────────────────────────────────────────────────
+let _wf = 'すべて';
+function rWatch() {
+  const chips = ['すべて',...CATS].map(c=>`<button class="fchip${_wf===c?' on':''}" onclick="window._wf='${c}';_wf='${c}';rWatch()">${c}</button>`).join('');
+  const list = _wf==='すべて' ? db.watchlist : db.watchlist.filter(w=>(w.cat||'その他')===_wf);
+
+  let rows = '';
+  if (!list.length) {
+    rows = `<div class="empty"><div class="empty-icon">⭐</div><div class="empty-t">${db.watchlist.length?'該当なし':'銘柄が登録されていません'}</div><div class="empty-s">${db.watchlist.length?'':'右上のボタンから追加してください'}</div></div>`;
+  } else {
+    rows = list.map(w=>{
+      const col = CAT_COLS[w.cat||'その他']||'#64748B';
+      const pnl = calcPnL(w.code);
+      const hasPos = pnl.qty > 0;
+      return `<div class="wr" onclick="openWatch(${w.id})">
+        <div class="wr-dot" style="background:${col}"></div>
+        <div class="wr-body">
+          <div class="wr-top">
+            <span class="wr-code">${he(w.code)}</span>
+            <span class="wr-name">${he(w.name)}</span>
+            ${hasPos?`<span class="chip chip-up">${pnl.qty}株保有</span>`:`<span class="wr-cat">${he(w.cat||'その他')}</span>`}
+          </div>
+          ${w.memo?`<div class="wr-memo">${he(w.memo)}</div>`:''}
+        </div>
+      </div>`;
+    }).join('') + '<div style="height:20px"></div>';
+  }
+
+  document.getElementById('scr').innerHTML = `
+    <div class="sh"><span class="sh-t">銘柄ウォッチ</span><button class="btn btn-acc btn-sm" onclick="openWatch()">＋ 追加</button></div>
+    <div class="fchips">${chips}</div>
+    ${rows}
+  `;
+}
+
+let _eWid = null;
+function openWatch(id) {
+  _eWid = id || null;
+  const w = id ? db.watchlist.find(x=>x.id===id) : null;
+  const catOpts = CATS.map(c=>`<option value="${c}"${(w?.cat||'その他')===c?' selected':''}>${c}</option>`).join('');
+  document.getElementById('watchMT').textContent = w ? '銘柄編集' : '銘柄追加';
+  document.getElementById('watchMBody').innerHTML = `
+    <div class="fg"><label class="fl">証券コード / ティッカー</label><input class="fc" id="wCode" value="${w?he(w.code):''}" placeholder="例: 8035 / NVDA"></div>
+    <div class="fg"><label class="fl">銘柄名</label><input class="fc" id="wName" value="${w?he(w.name):''}" placeholder="例: 東京エレクトロン"></div>
+    <div class="fg"><label class="fl">カテゴリ</label><select class="fc" id="wCat">${catOpts}</select></div>
+    <div class="fg"><label class="fl">メモ・注目理由</label><textarea class="fc" id="wMemo" placeholder="注目理由、教訓、チェックポイントなど...">${w?he(w.memo||''):''}</textarea></div>
+  `;
+  document.getElementById('watchMFoot').innerHTML = `
+    <button class="btn btn-acc" onclick="saveWatch()">保存</button>
+    <button class="btn btn-dark" onclick="closeMB('watchMB')">キャンセル</button>
+    ${w?`<button class="btn btn-dark" style="color:var(--red);border-color:var(--red)" onclick="deleteWatch(${w.id})">削除</button>`:''}
+  `;
+  document.getElementById('watchMB').classList.add('on');
+}
+
+function saveWatch() {
+  const code = (document.getElementById('wCode')?.value||'').trim().toUpperCase();
+  const name = (document.getElementById('wName')?.value||'').trim();
+  const cat = document.getElementById('wCat')?.value||'その他';
+  const memo = (document.getElementById('wMemo')?.value||'').trim();
+  if (!code) { alert('コードを入力してください'); return; }
+  if (!name) { alert('銘柄名を入力してください'); return; }
+  if (_eWid) {
+    const w = db.watchlist.find(x=>x.id===_eWid);
+    if (w) Object.assign(w, {code,name,cat,memo});
+  } else {
+    db.watchlist.push({id:nid('w'), code, name, cat, memo, addedAt:todayStr()});
+  }
+  saveDB(); closeMB('watchMB'); rWatch();
+}
+
+function deleteWatch(id) {
+  if (!confirm('この銘柄を削除しますか？取引記録は残ります。')) return;
+  db.watchlist = db.watchlist.filter(w=>w.id!==id);
+  saveDB(); closeMB('watchMB'); rWatch();
+}
+
+// ── TRADE ────────────────────────────────────────────────────────
+let _tf = 'すべて';
+function rTrade() {
+  const codes = [...new Set(db.trades.map(t=>t.code))];
+  const filtered = _tf==='すべて' ? codes : codes.filter(c=>c===_tf);
+  const chips = ['すべて',...codes].map(c=>`<button class="fchip${_tf===c?' on':''}" onclick="window._tf='${c}';_tf='${c}';rTrade()">${c}</button>`).join('');
+
+  let rows = '';
+  if (!db.trades.length) {
+    rows = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-t">取引記録がありません</div><div class="empty-s">右上のボタンから追加してください</div></div>`;
+  } else if (!filtered.length) {
+    rows = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-t">該当なし</div></div>`;
+  } else {
+    rows = filtered.map(code=>{
+      const pnl = calcPnL(code);
+      const ts = db.trades.filter(t=>t.code===code).sort((a,b)=>b.date.localeCompare(a.date));
+      const name = ts[0]?.name || code;
+      const pnlCls = pnl.realized>0?'up':pnl.realized<0?'dn':'neu';
+      return `<div class="tr-group">
+        <div class="tr-head">
+          <div>
+            <div class="tr-code">${he(code)} <span style="font-size:12px;font-weight:500;color:var(--t3)">${he(name)}</span></div>
+            ${pnl.qty>0?`<div style="font-size:11px;color:var(--t3);margin-top:2px">${pnl.qty}株保有 · 平均 ¥${Math.round(pnl.avgCost).toLocaleString()}</div>`:''}
+          </div>
+          <div class="tr-pnl ${pnlCls}">${pnl.realized!==0?yen(pnl.realized):'─'}</div>
+        </div>
+        ${ts.slice(0,5).map(t=>`
+        <div class="tr-row">
+          <div class="tr-type ${t.type}">${t.type==='buy'?'買':'売'}</div>
+          <div class="tr-info">
+            <div class="tr-date">${t.date}</div>
+            <div class="tr-detail">${t.qty}株 × ¥${t.price.toLocaleString()} = ¥${(t.qty*t.price).toLocaleString()}</div>
+            ${t.memo?`<div class="tr-memo">${he(t.memo)}</div>`:''}
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }).join('') + '<div style="height:20px"></div>';
+  }
+
+  document.getElementById('scr').innerHTML = `
+    <div class="sh"><span class="sh-t">取引記録</span><button class="btn btn-acc btn-sm" onclick="openTrade()">＋ 追加</button></div>
+    ${codes.length?`<div class="fchips">${chips}</div>`:''}
+    ${rows}
+  `;
+}
+
+let _eTid = null;
+function openTrade(id) {
+  _eTid = id || null;
+  const t = id ? db.trades.find(x=>x.id===id) : null;
+  const wOpts = db.watchlist.length
+    ? db.watchlist.map(w=>`<option value="${he(w.code)}" data-name="${he(w.name)}"${t?.code===w.code?' selected':''}>${w.code} — ${w.name}</option>`).join('')
+    : '';
+  document.getElementById('tradeMT').textContent = t ? '取引編集' : '取引追加';
+  document.getElementById('tradeMBody').innerHTML = `
+    <div class="fg">
+      <label class="fl">銘柄</label>
+      ${wOpts
+        ? `<select class="fc" id="tCode" onchange="fillTradeName()">${wOpts}</select>`
+        : `<input class="fc" id="tCodeRaw" value="${t?he(t.code):''}" placeholder="例: 8035 / NVDA">`
+      }
+    </div>
+    ${!wOpts?`<div class="fg"><label class="fl">銘柄名</label><input class="fc" id="tName" value="${t?he(t.name):''}" placeholder="例: 東京エレクトロン"></div>`:''}
+    <div class="fg">
+      <label class="fl">売買</label>
+      <select class="fc" id="tType">
+        <option value="buy"${(!t||t.type==='buy')?' selected':''}>買い</option>
+        <option value="sell"${t?.type==='sell'?' selected':''}>売り</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">日付</label><input type="date" class="fc" id="tDate" value="${t?t.date:todayStr()}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">株数</label><input type="number" class="fc" id="tQty" value="${t?t.qty:''}" placeholder="100"></div>
+      <div class="fg"><label class="fl">単価（円）</label><input type="number" class="fc" id="tPrice" value="${t?t.price:''}" placeholder="25000"></div>
+    </div>
+    <div class="fg"><label class="fl">メモ・理由</label><textarea class="fc" id="tMemo" placeholder="エントリー理由・教訓など...">${t?he(t.memo||''):''}</textarea></div>
+  `;
+  document.getElementById('tradeMFoot').innerHTML = `
+    <button class="btn btn-acc" onclick="saveTrade()">保存</button>
+    <button class="btn btn-dark" onclick="closeMB('tradeMB')">キャンセル</button>
+    ${t?`<button class="btn btn-dark" style="color:var(--red);border-color:var(--red)" onclick="deleteTrade(${t.id})">削除</button>`:''}
+  `;
+  document.getElementById('tradeMB').classList.add('on');
+}
+
+function fillTradeName() {
+  const sel = document.getElementById('tCode');
+  if (sel) {
+    const opt = sel.options[sel.selectedIndex];
+    // name is embedded in data-name attr if needed
+  }
+}
+
+function saveTrade() {
+  let code, name;
+  const sel = document.getElementById('tCode');
+  if (sel) {
+    code = sel.value;
+    const w = db.watchlist.find(w=>w.code===code);
+    name = w?.name || code;
+  } else {
+    code = (document.getElementById('tCodeRaw')?.value||'').trim().toUpperCase();
+    name = (document.getElementById('tName')?.value||'').trim() || code;
+  }
+  const type = document.getElementById('tType')?.value || 'buy';
+  const date = document.getElementById('tDate')?.value || todayStr();
+  const qty = parseInt(document.getElementById('tQty')?.value)||0;
+  const price = parseFloat(document.getElementById('tPrice')?.value)||0;
+  const memo = (document.getElementById('tMemo')?.value||'').trim();
+  if (!code) { alert('銘柄を選択してください'); return; }
+  if (!qty||!price) { alert('株数と単価を入力してください'); return; }
+  if (_eTid) {
+    const t = db.trades.find(x=>x.id===_eTid);
+    if (t) Object.assign(t, {code,name,type,date,qty,price,memo});
+  } else {
+    db.trades.push({id:nid('t'), code, name, type, date, qty, price, memo});
+  }
+  saveDB(); closeMB('tradeMB'); rTrade();
+}
+
+function deleteTrade(id) {
+  if (!confirm('この取引を削除しますか？')) return;
+  db.trades = db.trades.filter(t=>t.id!==id);
+  saveDB(); closeMB('tradeMB'); rTrade();
+}
+
+// ── Modal helpers ────────────────────────────────────────────────
+function closeMB(id) { document.getElementById(id)?.classList.remove('on'); }
+
+document.querySelectorAll('.mb').forEach(el=>{
+  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('on'); });
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeMB('watchMB');closeMB('tradeMB');closeBriefingFull();} });
+
+// ── Init ─────────────────────────────────────────────────────────
+loadDB();
+document.getElementById('hdrDate').textContent = new Date().toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
+render();
+</script>
+</body>
+</html>
