@@ -230,7 +230,10 @@ select.fc{appearance:none;}
       <span class="nb-ic">📊</span><span class="nb-lb">ホーム</span>
     </button>
     <button class="nb" id="nb-briefing" onclick="go('briefing',this)">
-      <span class="nb-ic">📰</span><span class="nb-lb">ブリーフィング</span>
+      <span class="nb-ic">📰</span><span class="nb-lb">相場</span>
+    </button>
+    <button class="nb" id="nb-buzz" onclick="go('buzz',this)">
+      <span class="nb-ic">🔥</span><span class="nb-lb">バズ</span>
     </button>
     <button class="nb" id="nb-watch" onclick="go('watch',this)">
       <span class="nb-ic">⭐</span><span class="nb-lb">銘柄</span>
@@ -289,6 +292,15 @@ async function _getBriefingsJson() {
   const r = await fetch('/briefings.json');
   _briefingsCache = await r.json();
   return _briefingsCache;
+}
+
+// Buzz data cache
+let _buzzCache = null;
+async function _getBuzzJson() {
+  if (_buzzCache) return _buzzCache;
+  const r = await fetch('/buzz.json');
+  _buzzCache = await r.json();
+  return _buzzCache;
 }
 
 async function apiBriefings() {
@@ -378,6 +390,7 @@ function render() {
   document.getElementById('scr').scrollTop = 0;
   if (_curTab==='home') rHome();
   else if (_curTab==='briefing') rBriefing();
+  else if (_curTab==='buzz') rBuzz();
   else if (_curTab==='watch') rWatch();
   else if (_curTab==='trade') rTrade();
 }
@@ -530,6 +543,29 @@ function openBriefingFull(file, title) {
 
 function closeBriefingFull() {
   document.getElementById('bfFull').classList.remove('on');
+}
+
+// ── BUZZ ─────────────────────────────────────────────────────────
+function rBuzz() {
+  document.getElementById('scr').innerHTML = `
+    <div id="buzzContent"><div class="empty"><div class="empty-icon">🔥</div><div class="empty-t">読み込み中...</div></div></div>
+  `;
+  _getBuzzJson()
+    .then(list => {
+      if (!list || !list.length) {
+        document.getElementById('buzzContent').innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-t">バズ投稿がまだありません</div><div class="empty-s">/tradesearch を実行してください</div></div>`;
+        return;
+      }
+      const latest = list[0];
+      const date = latest.file.slice(0, 10);
+      document.getElementById('buzzContent').innerHTML = `
+        <div class="sh"><span class="sh-t">🔥 バズ投稿10選</span><span style="font-size:11px;color:var(--t3)">${date}</span></div>
+        <div class="md-body" style="padding:0 16px 32px">${marked.parse(latest.content || '')}</div>
+      `;
+    })
+    .catch(() => {
+      document.getElementById('buzzContent').innerHTML = `<div class="empty"><div class="empty-icon">⚡</div><div class="empty-t">データを読み込めません</div><div class="empty-s">buzz.json が見つかりません</div></div>`;
+    });
 }
 
 // ── WATCH ────────────────────────────────────────────────────────
