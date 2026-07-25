@@ -211,6 +211,20 @@ select.fc{appearance:none;}
 .lc-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px;line-height:1.3;}
 .lc-date{font-size:11px;color:var(--t3);}
 .lc-arr{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;color:var(--t3);}
+/* ── Market dashboard ── */
+.mkt-mood{margin:0 14px 10px;padding:10px 14px;border-radius:var(--r2);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;}
+.mkt-mood.up{background:var(--grn2);color:var(--grn);}
+.mkt-mood.dn{background:var(--red2);color:var(--red);}
+.mkt-mood.neu{background:var(--s2);color:var(--t2);}
+.mkt-hero{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);margin:0 14px 10px;padding:18px 16px;}
+.mkt-hero-lbl{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.6px;margin-bottom:6px;}
+.mkt-hero-val{font-size:34px;font-weight:900;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;line-height:1;}
+.mkt-hero-sub{font-size:14px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;}
+.mkt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 14px 4px;}
+.mkt-idx{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;}
+.mkt-idx-lbl{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.4px;margin-bottom:5px;}
+.mkt-idx-val{font-size:20px;font-weight:900;letter-spacing:-0.8px;font-variant-numeric:tabular-nums;line-height:1;}
+.mkt-idx-sub{font-size:12px;font-weight:600;margin-top:5px;font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -302,6 +316,25 @@ async function _getBuzzJson() {
   _buzzCache = await r.json();
   return _buzzCache;
 }
+
+// Market data cache
+let _marketCache = null;
+async function _getMarketDataJson() {
+  if (_marketCache) return _marketCache;
+  const r = await fetch('/market_data.json');
+  _marketCache = await r.json();
+  return _marketCache;
+}
+
+function _mktClass(p) { return p > 0.5 ? 'up' : p < -0.5 ? 'dn' : 'neu'; }
+function _mktArrow(p) { return p > 2 ? '↑↑' : p > 0.5 ? '↑' : p < -2 ? '↓↓' : p < -0.5 ? '↓' : '→'; }
+function _fmtMktPrice(price, key) {
+  if (!price) return '—';
+  if (key === 'usdjpy') return price.toFixed(2);
+  const s = Math.round(price).toLocaleString('ja-JP');
+  return s;
+}
+function _mktSign(n) { return n >= 0 ? '+' : ''; }
 
 async function apiBriefings() {
   if (IS_LOCAL) {
@@ -400,35 +433,56 @@ function rHome() {
   const pnl = totalPnL();
   const tradeCount = db.trades.length;
   const watchCount = db.watchlist.length;
-
-  // Latest briefing (async)
-  let latestCard = `<div class="latest-card" id="latestBrief">
-    <div class="lc-label">LATEST BRIEFING</div>
-    <div class="lc-title" style="color:var(--t3)">読み込み中...</div>
-  </div>`;
-
-  const top3w = db.watchlist.slice(0,3);
+  const top3w = db.watchlist.slice(0, 3);
 
   let watchPreview = '';
   if (top3w.length) {
-    watchPreview = top3w.map(w=>{
-      const col = CAT_COLS[w.cat||'その他']||'#64748B';
+    watchPreview = top3w.map(w => {
+      const col = CAT_COLS[w.cat || 'その他'] || '#64748B';
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd2)">
         <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></div>
         <span style="font-size:14px;font-weight:800;color:var(--t1)">${he(w.code)}</span>
         <span style="font-size:12px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${he(w.name)}</span>
-        <span style="font-size:11px;color:var(--t3)">${he(w.cat||'')}</span>
+        <span style="font-size:11px;color:var(--t3)">${he(w.cat || '')}</span>
       </div>`;
     }).join('');
   }
 
   document.getElementById('scr').innerHTML = `
-    <div class="sh"><span class="sh-t">Overview</span></div>
-    ${latestCard}
+    <div class="sh"><span class="sh-t">今日の相場</span><span id="mktDate" style="font-size:11px;color:var(--t3)"></span></div>
+    <div id="mktMood" class="mkt-mood neu"><span>⏳</span><span>データ取得中...</span></div>
+    <div class="mkt-hero">
+      <div class="mkt-hero-lbl">日経 225</div>
+      <div class="mkt-hero-val neu" id="mktNikV">—</div>
+      <div class="mkt-hero-sub neu" id="mktNikS">取得中</div>
+    </div>
+    <div class="mkt-grid">
+      <div class="mkt-idx">
+        <div class="mkt-idx-lbl">SOX（半導体）</div>
+        <div class="mkt-idx-val neu" id="mktSoxV">—</div>
+        <div class="mkt-idx-sub neu" id="mktSoxS">—</div>
+      </div>
+      <div class="mkt-idx">
+        <div class="mkt-idx-lbl">Nasdaq</div>
+        <div class="mkt-idx-val neu" id="mktNasV">—</div>
+        <div class="mkt-idx-sub neu" id="mktNasS">—</div>
+      </div>
+      <div class="mkt-idx">
+        <div class="mkt-idx-lbl">Dow</div>
+        <div class="mkt-idx-val neu" id="mktDowV">—</div>
+        <div class="mkt-idx-sub neu" id="mktDowS">—</div>
+      </div>
+      <div class="mkt-idx">
+        <div class="mkt-idx-lbl">USD / JPY</div>
+        <div class="mkt-idx-val neu" id="mktFxV">—</div>
+        <div class="mkt-idx-sub neu" id="mktFxS">—</div>
+      </div>
+    </div>
+    <div class="sh" style="padding-top:8px"><span class="sh-t">マイポートフォリオ</span></div>
     <div class="kpi-strip">
       <div class="kpi-card">
         <div class="kpi-lbl">実現損益</div>
-        <div class="kpi-val ${pnl>=0?'up':'dn'}">${yen(pnl)}</div>
+        <div class="kpi-val ${pnl >= 0 ? 'up' : 'dn'}">${yen(pnl)}</div>
         <div class="kpi-sub">${tradeCount}件の取引</div>
       </div>
       <div class="kpi-card">
@@ -450,29 +504,51 @@ function rHome() {
     <div style="height:20px"></div>
   `;
 
-  // Async load latest briefing
-  apiBriefings()
-    .then(list=>{
-      if (list && list.length) {
-        const b = list[0];
-        const dateStr = b.file.slice(0,10);
-        document.getElementById('latestBrief').innerHTML = `
-          <div class="lc-label">LATEST BRIEFING</div>
-          <div class="lc-title">${he(b.title||b.file)}</div>
-          <div class="lc-date">${dateStr}</div>
-          <span class="lc-arr">›</span>
-        `;
-        document.getElementById('latestBrief').onclick = ()=>openBriefingFull(b.file, b.title||b.file);
-      } else {
-        document.getElementById('latestBrief').innerHTML = `
-          <div class="lc-label">LATEST BRIEFING</div>
-          <div class="lc-title" style="color:var(--t3)">ブリーフィングがありません</div>
-        `;
+  // Async load market data
+  _getMarketDataJson()
+    .then(d => {
+      const dateEl = document.getElementById('mktDate');
+      if (dateEl) dateEl.textContent = d.date || '';
+
+      const overall = d.overall || 'flat';
+      const overallJp = d.overall_jp || 'ほぼ横ばい';
+      const moodCls = overall.includes('up') ? 'up' : overall.includes('down') ? 'dn' : 'neu';
+      const moodEmoji = { strong_up: '🔥', up: '📈', flat: '➡', down: '📉', strong_down: '🚨' }[overall] || '➡';
+      const mood = document.getElementById('mktMood');
+      if (mood) { mood.className = `mkt-mood ${moodCls}`; mood.innerHTML = `<span>${moodEmoji}</span><span>米国市場：${overallJp}</span>`; }
+
+      function setHero(valId, subId, idx, key) {
+        const v = document.getElementById(valId);
+        const s = document.getElementById(subId);
+        if (!v || !s || !idx || !idx.ok) return;
+        const cls = _mktClass(idx.pct);
+        v.className = `mkt-hero-val ${cls}`;
+        v.textContent = _fmtMktPrice(idx.price, key);
+        s.className = `mkt-hero-sub ${cls}`;
+        s.textContent = `${_mktArrow(idx.pct)} ${_mktSign(idx.pct)}${idx.pct.toFixed(2)}%  (${_mktSign(idx.change)}${Math.round(idx.change).toLocaleString()})`;
       }
+
+      function setIdx(valId, subId, idx, key) {
+        const v = document.getElementById(valId);
+        const s = document.getElementById(subId);
+        if (!v || !s || !idx || !idx.ok) return;
+        const cls = _mktClass(idx.pct);
+        v.className = `mkt-idx-val ${cls}`;
+        v.textContent = _fmtMktPrice(idx.price, key);
+        s.className = `mkt-idx-sub ${cls}`;
+        s.textContent = `${_mktArrow(idx.pct)} ${_mktSign(idx.pct)}${idx.pct.toFixed(2)}%`;
+      }
+
+      const g = d.indices || {};
+      setHero('mktNikV', 'mktNikS', g.nikkei, 'nikkei');
+      setIdx('mktSoxV', 'mktSoxS', g.sox, 'sox');
+      setIdx('mktNasV', 'mktNasS', g.nasdaq, 'nasdaq');
+      setIdx('mktDowV', 'mktDowS', g.dow, 'dow');
+      setIdx('mktFxV', 'mktFxS', g.usdjpy, 'usdjpy');
     })
-    .catch(()=>{
-      const el = document.getElementById('latestBrief');
-      if (el) el.innerHTML = `<div class="lc-label">LATEST BRIEFING</div><div class="lc-title" style="color:var(--t3)">データ未生成</div>`;
+    .catch(() => {
+      const mood = document.getElementById('mktMood');
+      if (mood) { mood.className = 'mkt-mood neu'; mood.innerHTML = '<span>⚠️</span><span>相場データ未生成（build.py を実行）</span>'; }
     });
 }
 

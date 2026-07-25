@@ -25,7 +25,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running build.py..." >> "$LOG"
 "$PYTHON" build.py >> "$LOG" 2>&1
 
 # 2. Stage and commit if anything changed
-"$GIT" add briefings.json buzz.json
+"$GIT" add briefings.json buzz.json market_data.json
 if "$GIT" diff --cached --quiet; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] No changes to deploy" >> "$LOG"
 else
